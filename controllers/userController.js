@@ -1,3 +1,4 @@
+const { readSync } = require("fs");
 const User = require("../models/User");
 
 exports.login = function (req, res) {
@@ -6,12 +7,23 @@ exports.login = function (req, res) {
     .login()
     .then(function (result) {
       req.session.user = { favColor: "blue", username: user.data.username };
-      res.send(result);
+      req.session.save(function () {
+        res.redirect("/");
+      });
     })
-    .catch((err) => res.send(err));
+    .catch(function (err) {
+      req.flash("errors", err);
+      req.session.save(function () {
+        res.redirect("/");
+      });
+    });
 };
 
-exports.logout = function () {};
+exports.logout = function (req, res) {
+  req.session.destroy(function () {
+    res.redirect("/");
+  });
+};
 exports.register = function (req, res) {
   let user = new User(req.body);
   user.register();
@@ -25,6 +37,6 @@ exports.home = function (req, res) {
   if (req.session.user) {
     res.render("home-dashboard", { username: req.session.user.username });
   } else {
-    res.render("home-guest");
+    res.render("home-guest", { errors: req.flash("errors") });
   }
 };
