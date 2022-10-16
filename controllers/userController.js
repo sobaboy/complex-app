@@ -1,12 +1,22 @@
 const { readSync } = require("fs");
 const User = require("../models/User");
 
+exports.mustBeLoggedIn = function (req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.flash("errors", "포스팅을 위해서 로그인이 필요합니다");
+    req.session.save(function () {
+      res.redirect("/");
+    });
+  }
+};
 exports.login = function (req, res) {
   let user = new User(req.body);
   user
     .login()
     .then(function (result) {
-      req.session.user = { favColor: "blue", username: user.data.username };
+      req.session.user = { avatar: user.avatar, username: user.data.username };
       req.session.save(function () {
         res.redirect("/");
       });
@@ -45,7 +55,7 @@ exports.register = function (req, res) {
 };
 exports.home = function (req, res) {
   if (req.session.user) {
-    res.render("home-dashboard", { username: req.session.user.username });
+    res.render("home-dashboard");
   } else {
     res.render("home-guest", {
       errors: req.flash("errors"),
