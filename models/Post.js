@@ -1,7 +1,7 @@
 const { ObjectID } = require("bson");
-
 const postsCollection = require("../db").db().collection("post");
 const ObjectId = require("mongodb").ObjectId;
+const User = require("./User");
 
 class Post {
   constructor(data, userId) {
@@ -38,14 +38,14 @@ class Post {
       this.cleanUp();
       this.validate();
       if (!this.errors.length) {
-        // save
+        // save post into database
         postsCollection
           .insertOne(this.data)
           .then(() => {
             resolve();
           })
           .catch(() => {
-            this.errors.push("나중에 다시 시도해주세요");
+            this.errors.push("Please try again later.");
             reject(this.errors);
           });
       } else {
@@ -57,16 +57,49 @@ class Post {
 
 Post.findSingleById = function (id) {
   return new Promise(async function (resolve, reject) {
-    if (typeof id != "string" || !ObjectID.isValid(id)) {
+    if (typeof id != "string" || !ObjectId.isValid(id)) {
       reject();
       return;
     }
-    let post = await postsCollection.findOne({ _id: new ObjectID(id) });
-    if (post) {
-      resolve(post);
+    let posts = await postsCollection
+      .aggregate([
+        { $match: { _id: new ObjectId(id) } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "author",
+            foreignField: "_id",
+            as: "authorDocument",
+          },
+        },
+        // {
+        //   $project: {
+        //     title: 1,
+        //     body: 1,
+        //     createdDate: 1,
+        //     author: { $arrayElemAt: ["$authorDocument", 0] },
+        //   },
+        // },
+      ])
+      .toArray();
+
+    // // clean up author property in each post object
+    // posts = posts.map(function (post) {
+    //   post.author = {
+    //     username: post.author.username,
+    //     avatar: new User(post.author, true).avatar,
+    //   };
+
+    //   return post;
+    // });
+
+    if (posts.length) {
+      console.log(posts[0]);
+      resolve(posts[0]);
     } else {
       reject();
     }
   });
 };
+
 module.exports = Post;

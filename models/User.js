@@ -2,10 +2,18 @@ const bcrypt = require("bcryptjs");
 const { resolve } = require("path");
 const usersCollection = require("../db").db().collection("users");
 const validator = require("validator");
+const md5 = require("md5");
+
 class User {
-  constructor(data) {
+  constructor(data, getAvatar) {
     this.data = data;
     this.errors = [];
+    if (getAvatar == undefined) {
+      getAvatar = false;
+    }
+    if (getAvatar) {
+      this.getAvatar();
+    }
   }
   cleanUp() {
     if (typeof this.data.username != "string") {
@@ -17,7 +25,8 @@ class User {
     if (typeof this.data.password != "string") {
       this.data.password = "";
     }
-    // get rid of bogus properties
+
+    // get rid of any bogus properties
     this.data = {
       username: this.data.username.trim().toLowerCase(),
       email: this.data.email.trim().toLowerCase(),
@@ -89,6 +98,8 @@ class User {
             attemptedUser &&
             bcrypt.compareSync(this.data.password, attemptedUser.password)
           ) {
+            this.data = attemptedUser;
+            this.getAvatar();
             resolve("환영합니다!");
           } else {
             reject("유효하지 않은 사용자이름, 비밀번호입니다");
@@ -111,12 +122,43 @@ class User {
         let salt = bcrypt.genSaltSync(10);
         this.data.password = bcrypt.hashSync(this.data.password, salt);
         await usersCollection.insertOne(this.data);
+        this.getAvatar();
         resolve();
       } else {
         reject(this.errors);
       }
     });
   }
+  getAvatar() {
+    this.avatar = `https://gravatar.com/avatar/${md5(this.data.email)}?s=128`;
+  }
 }
+
+User.findByUsername = function (username) {
+  return new Promise(function (resolve, reject) {
+    if (typeof username != "string") {
+      reject();
+      return;
+    }
+    usersCollection
+      .findOne({ username: username })
+      .then(function (userDoc) {
+        if (userDoc) {
+          userDoc = new User(userDoc, true);
+          userDoc = {
+            _id: userDoc.data._id,
+            username: userDoc.data.username,
+            avatar: userDoc.avatar,
+          };
+          resolve(userDoc);
+        } else {
+          reject();
+        }
+      })
+      .catch(function () {
+        reject();
+      });
+  });
+};
 
 module.exports = User;
