@@ -3,6 +3,7 @@ const { post } = require("../router");
 const postsCollection = require("../db").db().collection("post");
 const ObjectId = require("mongodb").ObjectId;
 const User = require("./User");
+const sanitizeHTML = require("sanitize-html");
 
 class Post {
   constructor(data, userId, requestedPostId) {
@@ -20,8 +21,14 @@ class Post {
     }
     // get rid of any bogus properties
     this.data = {
-      title: this.data.title,
-      body: this.data.body,
+      title: sanitizeHTML(this.data.title.trim(), {
+        allowedTags: [],
+        allowedAttributes: {},
+      }),
+      body: sanitizeHTML(this.data.body.trim(), {
+        allowedTags: [],
+        allowedAttributes: {},
+      }),
       createdDate: new Date(),
       author: ObjectId(this.userId),
     };
@@ -43,8 +50,8 @@ class Post {
         // save post into database
         postsCollection
           .insertOne(this.data)
-          .then(() => {
-            resolve();
+          .then((info) => {
+            resolve(info.insertedId);
           })
           .catch(() => {
             this.errors.push("Please try again later.");

@@ -8,11 +8,13 @@ exports.create = function (req, res) {
   let post = new Post(req.body, req.session.user._id);
   post
     .create()
-    .then(function () {
-      res.send("새 포스트 생성");
+    .then(function (newId) {
+      req.flash("success", "새로운 포스트가 생성되었습니다");
+      req.session.save(() => res.redirect(`/post/${newId}`));
     })
     .catch(function (errors) {
-      res.send(errors);
+      errors.forEach((error) => req.flash("errors", error));
+      req.session.save(() => res.redirect("/create-post"));
     });
 };
 exports.viewSingle = async function (req, res) {
