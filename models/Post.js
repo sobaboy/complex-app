@@ -1,13 +1,15 @@
 const { ObjectID } = require("bson");
+const { post } = require("../router");
 const postsCollection = require("../db").db().collection("post");
 const ObjectId = require("mongodb").ObjectId;
 const User = require("./User");
 
 class Post {
-  constructor(data, userId) {
+  constructor(data, userId, requestedPostId) {
     this.data = data;
     this.errors = [];
     this.userId = userId;
+    this.requestedPostId = requestedPostId;
   }
   cleanUp() {
     if (typeof this.data.title != "string") {
@@ -50,6 +52,40 @@ class Post {
           });
       } else {
         reject(this.errors);
+      }
+    });
+  }
+  update() {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let post = await Post.findSingleById(this.requestedPostId, this.userId);
+        if (post.isVisitorOwner) {
+          let status = await this.actuallyUpdate();
+          resolve(status);
+        } else {
+          reject();
+        }
+      } catch {
+        reject();
+      }
+    });
+  }
+  actuallyUpdate() {
+    return new Promise(async (resolve, reject) => {
+      this.cleanUp();
+      this.validate();
+      if (!this.errors.length) {
+        await postsCollection.findOneAndUpdate(
+          {
+            _id: new ObjectID(this.requestedPostId),
+          },
+          {
+            $set: { title: this.data.title, body: this.data.body },
+          }
+        );
+        resolve("success");
+      } else {
+        resolve("failure");
       }
     });
   }

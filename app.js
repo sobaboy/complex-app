@@ -16,6 +16,9 @@ app.use(sessionOptions);
 app.use(flash());
 
 app.use(function (req, res, next) {
+  // 모든 템플릿에서 error와 success 메세지 사용가능하게
+  res.locals.errors = req.flash("errors");
+  res.locals.success = req.flash("success");
   // 현재 user id req object에서 사용가능하게
   if (req.session.user) {
     req.visitorId = req.session.user._id;
