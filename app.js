@@ -16,6 +16,14 @@ app.use(sessionOptions);
 app.use(flash());
 
 app.use(function (req, res, next) {
+  // 현재 user id req object에서 사용가능하게
+  if (req.session.user) {
+    req.visitorId = req.session.user._id;
+  } else {
+    req.visitorId = 0;
+  }
+
+  // user session 데이터 view 템플릿에서 사용 가능하게
   res.locals.user = req.session.user;
   next();
 });
